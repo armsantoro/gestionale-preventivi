@@ -1,0 +1,63 @@
+{
+  "name": "gestionale-preventivi",
+  "version": "1.0.0",
+  "description": "Gestionale & Generatore Preventivi - Stella Filella Wedding & Events",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "tsc && vite build && tsc -p tsconfig.electron.json",
+    "preview": "vite preview",
+    "electron:build": "npm run build && electron-builder"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:18729/git/armsantoro/gestionale-preventivi"
+  },
+  "keywords": [],
+  "author": "Stella Filella Wedding & Events",
+  "license": "ISC",
+  "dependencies": {
+    "@react-pdf/renderer": "^4.3.2",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.564.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "autoprefixer": "^10.4.24",
+    "better-sqlite3": "^12.6.2",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^40.4.0",
+    "electron-builder": "^26.7.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "wait-on": "^9.0.4"
+  },
+  "build": {
+    "appId": "com.stellafilella.preventivi",
+    "productName": "Stella Filella Preventivi",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    }
+  }
+}
