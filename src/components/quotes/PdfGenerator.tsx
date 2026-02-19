@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, pdf } from '@react-pdf/renderer';
-import { Quote, QuoteItem, WeddingDetails, PaymentPlan, CompanySettings } from '../../types';
+import { Quote, QuoteItem, WeddingDetails, PaymentPlan, CompanySettings, FLOWERS, GREENERY, WEDDING_STYLES } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/format';
 
 // ---------------------------------------------------------------------------
@@ -15,6 +15,7 @@ interface PdfProps {
   settings: CompanySettings;
   accentColor?: string;
   template?: 'elegante' | 'minimal';
+  customFlowers?: { id: string; name: string }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -38,13 +39,28 @@ function sectionSubtotal(sectionItems: QuoteItem[]): number {
   return sectionItems.reduce((sum, i) => sum + (i.isGift ? 0 : i.amount), 0);
 }
 
-/** Parse comma-separated palette color hex codes. */
+/** Parse palette colors from JSON array string or comma-separated hex codes. */
 function parsePaletteColors(raw: string): string[] {
   if (!raw) return [];
-  return raw
-    .split(',')
-    .map((c) => c.trim())
-    .filter(Boolean);
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+  } catch { /* fallback to comma-separated */ }
+  return raw.split(',').map((c) => c.trim()).filter(Boolean);
+}
+
+/** Parse JSON array string or comma-separated IDs, resolve to names using a lookup. */
+function parseJsonOrCsv(raw: string, lookup?: { id: string; name: string }[]): string[] {
+  if (!raw) return [];
+  let ids: string[];
+  try {
+    const parsed = JSON.parse(raw);
+    ids = Array.isArray(parsed) ? parsed : raw.split(',').map(s => s.trim());
+  } catch {
+    ids = raw.split(',').map(s => s.trim());
+  }
+  if (!lookup) return ids.filter(Boolean);
+  return ids.map(id => lookup.find(item => item.id === id)?.name || id).filter(Boolean);
 }
 
 /** Lighten a hex color by a given amount (0-1). */
@@ -480,17 +496,17 @@ function ClientEventSection({
 function WeddingDetailsSection({
   weddingDetails,
   styles,
+  customFlowers,
 }: {
   weddingDetails: WeddingDetails;
   styles: ReturnType<typeof createStyles>;
+  customFlowers?: { id: string; name: string }[];
 }) {
   const colors = parsePaletteColors(weddingDetails.paletteColors);
-  const flowers = weddingDetails.flowers
-    ? weddingDetails.flowers.split(',').map((f) => f.trim()).filter(Boolean)
-    : [];
-  const greenery = weddingDetails.greenery
-    ? weddingDetails.greenery.split(',').map((g) => g.trim()).filter(Boolean)
-    : [];
+  const allFlowerLookup = [...FLOWERS, ...(customFlowers || [])];
+  const flowers = parseJsonOrCsv(weddingDetails.flowers, allFlowerLookup);
+  const greenery = parseJsonOrCsv(weddingDetails.greenery, GREENERY as { id: string; name: string }[]);
+  const styleName = WEDDING_STYLES.find(s => s.id === weddingDetails.style)?.name || weddingDetails.style;
 
   return (
     <View style={styles.weddingSection}>
@@ -531,14 +547,7 @@ function WeddingDetailsSection({
       {weddingDetails.style && (
         <View style={styles.weddingDetailRow}>
           <Text style={styles.infoLabel}>Stile: </Text>
-          <Text style={styles.infoValue}>{weddingDetails.style}</Text>
-        </View>
-      )}
-
-      {weddingDetails.palette && (
-        <View style={styles.weddingDetailRow}>
-          <Text style={styles.infoLabel}>Palette: </Text>
-          <Text style={styles.infoValue}>{weddingDetails.palette}</Text>
+          <Text style={styles.infoValue}>{styleName}</Text>
         </View>
       )}
 
@@ -856,6 +865,7 @@ export function QuotePdfDocument({
   settings,
   accentColor = '#8B6F5E',
   template = 'elegante',
+  customFlowers,
 }: PdfProps) {
   const styles = createStyles(accentColor, template);
   const isWedding = quote.eventType === 'matrimonio';
@@ -875,7 +885,7 @@ export function QuotePdfDocument({
 
         {/* WEDDING DETAILS */}
         {isWedding && weddingDetails && (
-          <WeddingDetailsSection weddingDetails={weddingDetails} styles={styles} />
+          <WeddingDetailsSection weddingDetails={weddingDetails} styles={styles} customFlowers={customFlowers} />
         )}
 
         {/* ITEMS TABLE */}
