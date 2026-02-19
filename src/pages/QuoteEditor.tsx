@@ -3,8 +3,8 @@ import { useAppStore } from '../store';
 import * as db from '../database';
 import {
   Client, EventType, Quote, QuoteItem, WeddingDetails, PaymentPlan, Service, ServiceCategory,
-  WEDDING_PALETTES, WEDDING_STYLES, FLOWERS, GREENERY, WEDDING_AREAS,
-  EVENT_TYPE_LABELS, CeremonyType, CompanySettings
+  WEDDING_STYLES, FLOWERS, GREENERY, WEDDING_AREAS,
+  EVENT_TYPE_LABELS, CeremonyType, CompanySettings, CustomFlower
 } from '../types';
 import { formatCurrency, formatDate, formatDateInput } from '../utils/format';
 import {
@@ -26,8 +26,7 @@ interface GeneralData {
 }
 
 interface WeddingConfig {
-  palette: string;
-  customColors: [string, string, string];
+  customColors: string[];
   style: string;
   flowers: string[];
   greenery: string[];
@@ -109,8 +108,7 @@ export default function QuoteEditor() {
 
   // ─── STEP 2 ─────────────────────────────────────────────────────────
   const [wedding, setWedding] = useState<WeddingConfig>({
-    palette: '',
-    customColors: ['#FFFFFF', '#FFFFFF', '#FFFFFF'],
+    customColors: [],
     style: '',
     flowers: [],
     greenery: [],
@@ -122,6 +120,10 @@ export default function QuoteEditor() {
     receptionName: '',
     hasCoordinator: false,
   });
+  const [customFlowers, setCustomFlowers] = useState<CustomFlower[]>([]);
+  const [showAddFlower, setShowAddFlower] = useState(false);
+  const [newFlowerName, setNewFlowerName] = useState('');
+  const [newFlowerCategory, setNewFlowerCategory] = useState('Fiori Principali');
 
   // ─── STEP 3 ─────────────────────────────────────────────────────────
   const [items, setItems] = useState<ItemRow[]>([]);
@@ -182,6 +184,7 @@ export default function QuoteEditor() {
     setClients(db.getClients());
     setServices(db.getServices());
     setCategories(db.getCategories());
+    setCustomFlowers(db.getCustomFlowers());
     const s = db.getSettings();
     setSettings(s);
     setFinancial(prev => ({ ...prev, conditions: s.defaultConditions, clientNotes: s.defaultNotes }));
@@ -253,9 +256,13 @@ export default function QuoteEditor() {
     if (quote.eventType === 'matrimonio') {
       const wd = db.getWeddingDetails(id);
       if (wd) {
+        let colors: string[] = [];
+        if (wd.paletteColors) {
+          try { colors = JSON.parse(wd.paletteColors); } catch { colors = []; }
+          if (!Array.isArray(colors)) colors = [];
+        }
         setWedding({
-          palette: wd.palette,
-          customColors: wd.paletteColors ? (JSON.parse(wd.paletteColors) as [string, string, string]) : ['#FFFFFF', '#FFFFFF', '#FFFFFF'],
+          customColors: colors,
           style: wd.style,
           flowers: wd.flowers ? JSON.parse(wd.flowers) : [],
           greenery: wd.greenery ? JSON.parse(wd.greenery) : [],
@@ -376,7 +383,7 @@ export default function QuoteEditor() {
           churchName: wedding.churchName,
           receptionName: wedding.receptionName,
           hasCoordinator: wedding.hasCoordinator,
-          palette: wedding.palette,
+          palette: '',
           paletteColors: JSON.stringify(wedding.customColors),
           style: wedding.style,
           flowers: JSON.stringify(wedding.flowers),
@@ -485,8 +492,8 @@ export default function QuoteEditor() {
           <div key={stepIdx} className="flex items-center">
             {i > 0 && (
               <div
-                className={`w-8 sm:w-16 h-0.5 ${
-                  isCompleted ? 'bg-rose-500' : darkMode ? 'bg-gray-700' : 'bg-gray-300'
+                className={`w-6 sm:w-12 h-px ${
+                  isCompleted ? 'bg-primary' : darkMode ? 'bg-gray-700' : 'bg-gray-300'
                 }`}
               />
             )}
@@ -494,9 +501,9 @@ export default function QuoteEditor() {
               onClick={() => setCurrentStep(stepIdx)}
               className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition whitespace-nowrap ${
                 isActive
-                  ? 'bg-rose-500 text-white'
+                  ? 'bg-primary text-white'
                   : isCompleted
-                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
+                  ? 'bg-primary/10 text-primary'
                   : darkMode
                   ? 'bg-gray-800 text-gray-400'
                   : 'bg-gray-100 text-gray-500'
@@ -505,9 +512,9 @@ export default function QuoteEditor() {
               <span
                 className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   isActive
-                    ? 'bg-white text-rose-500'
+                    ? 'bg-white text-primary'
                     : isCompleted
-                    ? 'bg-rose-500 text-white'
+                    ? 'bg-primary text-white'
                     : darkMode
                     ? 'bg-gray-700 text-gray-400'
                     : 'bg-gray-300 text-gray-600'
@@ -548,7 +555,7 @@ export default function QuoteEditor() {
               <button
                 type="button"
                 onClick={() => setShowNewClient(true)}
-                className="px-3 py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition flex items-center gap-1"
+                className="px-3 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition flex items-center gap-1"
               >
                 <Plus size={14} /> Nuovo
               </button>
@@ -667,330 +674,98 @@ export default function QuoteEditor() {
     </div>
   );
 
+  // ─── Flower helpers ─────────────────────────────────────────────────
+  const allFlowers = [...FLOWERS, ...customFlowers];
+
+  const handleAddCustomFlower = () => {
+    if (!newFlowerName.trim()) return;
+    const id = `custom-${Date.now()}`;
+    const flower: CustomFlower = { id, name: newFlowerName.trim(), category: newFlowerCategory };
+    db.addCustomFlower(flower);
+    setCustomFlowers(prev => [...prev, flower]);
+    setNewFlowerName('');
+    setShowAddFlower(false);
+  };
+
+  const handleDeleteCustomFlower = (id: string) => {
+    db.deleteCustomFlower(id);
+    setCustomFlowers(prev => prev.filter(f => f.id !== id));
+    setWedding(prev => ({ ...prev, flowers: prev.flowers.filter(fId => fId !== id) }));
+  };
+
   // ─── STEP 2: Configuratore Matrimonio ──────────────────────────────
   const renderStep2 = () => (
     <div className="space-y-6">
-      {/* 2A — Palette Colori */}
+      {/* 2A — Dettagli Sposi */}
       <div className={`rounded-xl border p-6 ${cardCls}`}>
-        <h2 className={`text-xl font-bold mb-4 ${textPrimary}`}>Palette Colori</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
-          {WEDDING_PALETTES.map(p => {
-            const selected = wedding.palette === p.name;
-            return (
-              <button
-                key={p.name}
-                onClick={() => setWedding(prev => ({ ...prev, palette: p.name }))}
-                className={`rounded-xl border-2 p-3 text-left transition ${
-                  selected
-                    ? 'border-rose-500 ring-2 ring-rose-200'
-                    : darkMode
-                    ? 'border-gray-700 hover:border-gray-500'
-                    : 'border-gray-200 hover:border-gray-400'
-                }`}
-              >
-                <div className="flex gap-1 mb-2">
-                  {p.colors.map((c, i) => (
-                    <div
-                      key={i}
-                      className="w-8 h-8 rounded-full border border-gray-300"
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-                <p className={`text-xs font-medium ${textPrimary}`}>{p.name}</p>
-                {selected && (
-                  <div className="mt-1">
-                    <Check size={14} className="text-rose-500" />
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Custom palette */}
-        <div>
-          <button
-            onClick={() => setWedding(prev => ({ ...prev, palette: '__custom__' }))}
-            className={`text-sm font-medium mb-2 ${
-              wedding.palette === '__custom__' ? 'text-rose-500' : darkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}
-          >
-            Palette personalizzata
-          </button>
-          {wedding.palette === '__custom__' && (
-            <div className="flex gap-3 mt-2">
-              {wedding.customColors.map((c, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={c}
-                    onChange={e => {
-                      const newColors = [...wedding.customColors] as [string, string, string];
-                      newColors[i] = e.target.value;
-                      setWedding(prev => ({ ...prev, customColors: newColors }));
-                    }}
-                    className="w-10 h-10 rounded cursor-pointer border-0"
-                  />
-                  <span className={`text-xs ${textMuted}`}>{c}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 2B — Stile Matrimonio */}
-      <div className={`rounded-xl border p-6 ${cardCls}`}>
-        <h2 className={`text-xl font-bold mb-4 ${textPrimary}`}>Stile Matrimonio</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {WEDDING_STYLES.map(s => {
-            const selected = wedding.style === s.id;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setWedding(prev => ({ ...prev, style: s.id }))}
-                className={`rounded-xl border-2 p-4 text-center transition ${
-                  selected
-                    ? 'border-rose-500 ring-2 ring-rose-200'
-                    : darkMode
-                    ? 'border-gray-700 hover:border-gray-500'
-                    : 'border-gray-200 hover:border-gray-400'
-                }`}
-              >
-                <div className="text-3xl mb-2">{s.icon}</div>
-                <p className={`text-sm font-medium ${textPrimary}`}>{s.name}</p>
-                {selected && <Check size={14} className="text-rose-500 mx-auto mt-1" />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 2C — Fiori Principali */}
-      <div className={`rounded-xl border p-6 ${cardCls}`}>
-        <h2 className={`text-xl font-bold mb-4 ${textPrimary}`}>Fiori Principali</h2>
-
-        {/* Flowers grouped by category */}
-        {(() => {
-          const flowerCategories = [...new Set(FLOWERS.map(f => f.category))];
-          return flowerCategories.map(cat => (
-            <div key={cat} className="mb-4">
-              <h3 className={`text-sm font-semibold mb-2 ${textMuted}`}>{cat}</h3>
-              <div className="flex flex-wrap gap-2">
-                {FLOWERS.filter(f => f.category === cat).map(f => {
-                  const selected = wedding.flowers.includes(f.id);
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => {
-                        setWedding(prev => ({
-                          ...prev,
-                          flowers: selected
-                            ? prev.flowers.filter(id => id !== f.id)
-                            : [...prev.flowers, f.id],
-                        }));
-                      }}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition flex items-center gap-1 ${
-                        selected
-                          ? 'bg-rose-500 text-white border-rose-500'
-                          : darkMode
-                          ? 'border-gray-600 text-gray-300 hover:border-rose-400'
-                          : 'border-gray-300 text-gray-700 hover:border-rose-400'
-                      }`}
-                    >
-                      {selected && <Check size={12} />}
-                      {f.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ));
-        })()}
-
-        {/* Greenery */}
-        <h3 className={`text-sm font-semibold mb-2 mt-6 ${textMuted}`}>Verdi / Fogliame</h3>
-        <div className="flex flex-wrap gap-2">
-          {GREENERY.map(g => {
-            const selected = wedding.greenery.includes(g.id);
-            return (
-              <button
-                key={g.id}
-                onClick={() => {
-                  setWedding(prev => ({
-                    ...prev,
-                    greenery: selected
-                      ? prev.greenery.filter(id => id !== g.id)
-                      : [...prev.greenery, g.id],
-                  }));
-                }}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition flex items-center gap-1 ${
-                  selected
-                    ? 'bg-emerald-500 text-white border-emerald-500'
-                    : darkMode
-                    ? 'border-gray-600 text-gray-300 hover:border-emerald-400'
-                    : 'border-gray-300 text-gray-700 hover:border-emerald-400'
-                }`}
-              >
-                {selected && <Check size={12} />}
-                {g.name}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Selected summary */}
-        {(wedding.flowers.length > 0 || wedding.greenery.length > 0) && (
-          <div className={`mt-4 p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-            <p className={`text-xs font-semibold mb-1 ${textMuted}`}>Selezione corrente:</p>
-            <div className="flex flex-wrap gap-1">
-              {wedding.flowers.map(id => {
-                const f = FLOWERS.find(fl => fl.id === id);
-                return f ? (
-                  <span
-                    key={id}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
-                  >
-                    {f.name}
-                    <button
-                      onClick={() =>
-                        setWedding(prev => ({ ...prev, flowers: prev.flowers.filter(x => x !== id) }))
-                      }
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ) : null;
-              })}
-              {wedding.greenery.map(id => {
-                const g = GREENERY.find(gr => gr.id === id);
-                return g ? (
-                  <span
-                    key={id}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                  >
-                    {g.name}
-                    <button
-                      onClick={() =>
-                        setWedding(prev => ({ ...prev, greenery: prev.greenery.filter(x => x !== id) }))
-                      }
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ) : null;
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 2D — Aree da Allestire */}
-      <div className={`rounded-xl border p-6 ${cardCls}`}>
-        <h2 className={`text-xl font-bold mb-4 ${textPrimary}`}>Aree da Allestire</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {WEDDING_AREAS.map(area => {
-            const selected = wedding.areas.includes(area.id);
-            return (
-              <label
-                key={area.id}
-                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
-                  selected
-                    ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
-                    : darkMode
-                    ? 'border-gray-700 hover:border-gray-500'
-                    : 'border-gray-200 hover:border-gray-400'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  onChange={() => {
-                    setWedding(prev => ({
-                      ...prev,
-                      areas: selected
-                        ? prev.areas.filter(id => id !== area.id)
-                        : [...prev.areas, area.id],
-                    }));
-                  }}
-                  className="w-4 h-4 text-rose-500 rounded border-gray-300 focus:ring-rose-500"
-                />
-                <span className={`text-sm font-medium ${textPrimary}`}>{area.name}</span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 2E — Dettagli Matrimonio */}
-      <div className={`rounded-xl border p-6 ${cardCls}`}>
-        <h2 className={`text-xl font-bold mb-4 ${textPrimary}`}>Dettagli Matrimonio</h2>
+        <h2 className={`text-lg font-semibold mb-5 ${textPrimary}`}>Dettagli Sposi</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label className={`block text-sm font-medium mb-1 ${labelCls}`}>Nome Sposa</label>
+            <label className={`block text-sm font-medium mb-1.5 ${labelCls}`}>Nome Sposa</label>
             <input
               type="text"
               value={wedding.brideName}
               onChange={e => setWedding(prev => ({ ...prev, brideName: e.target.value }))}
+              placeholder="Nome della sposa"
               className={`w-full rounded-lg border px-3 py-2.5 text-sm ${inputCls}`}
             />
           </div>
           <div>
-            <label className={`block text-sm font-medium mb-1 ${labelCls}`}>Nome Sposo</label>
+            <label className={`block text-sm font-medium mb-1.5 ${labelCls}`}>Nome Sposo</label>
             <input
               type="text"
               value={wedding.groomName}
               onChange={e => setWedding(prev => ({ ...prev, groomName: e.target.value }))}
+              placeholder="Nome dello sposo"
               className={`w-full rounded-lg border px-3 py-2.5 text-sm ${inputCls}`}
             />
           </div>
-
           <div className="md:col-span-2">
             <label className={`block text-sm font-medium mb-2 ${labelCls}`}>Tipo Cerimonia</label>
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               {(['religiosa', 'civile', 'simbolica'] as CeremonyType[]).map(ct => (
-                <label key={ct} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="ceremonyType"
-                    checked={wedding.ceremonyType === ct}
-                    onChange={() => setWedding(prev => ({ ...prev, ceremonyType: ct }))}
-                    className="w-4 h-4 text-rose-500 focus:ring-rose-500"
-                  />
-                  <span className={`text-sm ${textPrimary}`}>
-                    {ct.charAt(0).toUpperCase() + ct.slice(1)}
-                  </span>
-                </label>
+                <button
+                  key={ct}
+                  onClick={() => setWedding(prev => ({ ...prev, ceremonyType: ct }))}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                    wedding.ceremonyType === ct
+                      ? 'bg-primary text-white border-primary'
+                      : darkMode
+                      ? 'border-gray-600 text-gray-300 hover:border-gray-400'
+                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  {ct.charAt(0).toUpperCase() + ct.slice(1)}
+                </button>
               ))}
             </div>
           </div>
-
           <div>
-            <label className={`block text-sm font-medium mb-1 ${labelCls}`}>Chiesa / Luogo Cerimonia</label>
+            <label className={`block text-sm font-medium mb-1.5 ${labelCls}`}>Chiesa / Luogo Cerimonia</label>
             <input
               type="text"
               value={wedding.churchName}
               onChange={e => setWedding(prev => ({ ...prev, churchName: e.target.value }))}
+              placeholder="Nome della chiesa o luogo"
               className={`w-full rounded-lg border px-3 py-2.5 text-sm ${inputCls}`}
             />
           </div>
           <div>
-            <label className={`block text-sm font-medium mb-1 ${labelCls}`}>Location Ricevimento</label>
+            <label className={`block text-sm font-medium mb-1.5 ${labelCls}`}>Location Ricevimento</label>
             <input
               type="text"
               value={wedding.receptionName}
               onChange={e => setWedding(prev => ({ ...prev, receptionName: e.target.value }))}
+              placeholder="Nome della location"
               className={`w-full rounded-lg border px-3 py-2.5 text-sm ${inputCls}`}
             />
           </div>
-
           <div className="md:col-span-2">
             <label className="flex items-center gap-3 cursor-pointer">
               <div
                 onClick={() => setWedding(prev => ({ ...prev, hasCoordinator: !prev.hasCoordinator }))}
                 className={`relative w-11 h-6 rounded-full transition cursor-pointer ${
-                  wedding.hasCoordinator ? 'bg-rose-500' : darkMode ? 'bg-gray-600' : 'bg-gray-300'
+                  wedding.hasCoordinator ? 'bg-primary' : darkMode ? 'bg-gray-600' : 'bg-gray-300'
                 }`}
               >
                 <div
@@ -1002,6 +777,344 @@ export default function QuoteEditor() {
               <span className={`text-sm font-medium ${textPrimary}`}>Wedding Coordinator incluso</span>
             </label>
           </div>
+        </div>
+      </div>
+
+      {/* 2B — Palette Colori (free color picker, up to 5) */}
+      <div className={`rounded-xl border p-6 ${cardCls}`}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className={`text-lg font-semibold ${textPrimary}`}>Palette Colori</h2>
+            <p className={`text-xs mt-1 ${textMuted}`}>Scegli fino a 5 colori dalla tavolozza</p>
+          </div>
+          {wedding.customColors.length < 5 && (
+            <button
+              onClick={() => setWedding(prev => ({ ...prev, customColors: [...prev.customColors, '#D4A574'] }))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition"
+            >
+              <Plus size={14} /> Aggiungi colore
+            </button>
+          )}
+        </div>
+
+        {wedding.customColors.length === 0 ? (
+          <div className={`text-center py-8 rounded-lg border-2 border-dashed ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <p className={`text-sm mb-3 ${textMuted}`}>Nessun colore selezionato</p>
+            <button
+              onClick={() => setWedding(prev => ({ ...prev, customColors: ['#D4A574'] }))}
+              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition"
+            >
+              Inizia a scegliere i colori
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {wedding.customColors.map((color, i) => (
+              <div
+                key={i}
+                className={`flex items-center gap-4 p-3 rounded-lg border ${
+                  darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
+                }`}
+              >
+                <div className="relative">
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={e => {
+                      const newColors = [...wedding.customColors];
+                      newColors[i] = e.target.value;
+                      setWedding(prev => ({ ...prev, customColors: newColors }));
+                    }}
+                    className="w-12 h-12 rounded-lg cursor-pointer border-0 p-0"
+                    style={{ background: 'none' }}
+                  />
+                  <div
+                    className="absolute inset-0 rounded-lg border-2 border-white shadow-sm pointer-events-none"
+                    style={{ backgroundColor: color }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${textPrimary}`}>Colore {i + 1}</p>
+                  <p className={`text-xs font-mono ${textMuted}`}>{color.toUpperCase()}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const newColors = wedding.customColors.filter((_, idx) => idx !== i);
+                    setWedding(prev => ({ ...prev, customColors: newColors }));
+                  }}
+                  className="p-2 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            {/* Preview strip */}
+            <div className="flex gap-0 rounded-lg overflow-hidden h-8 mt-2">
+              {wedding.customColors.map((color, i) => (
+                <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2C — Stile Matrimonio */}
+      <div className={`rounded-xl border p-6 ${cardCls}`}>
+        <h2 className={`text-lg font-semibold mb-5 ${textPrimary}`}>Stile Matrimonio</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {WEDDING_STYLES.map(s => {
+            const selected = wedding.style === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setWedding(prev => ({ ...prev, style: s.id }))}
+                className={`rounded-xl border-2 p-4 text-center transition ${
+                  selected
+                    ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                    : darkMode
+                    ? 'border-gray-700 hover:border-gray-500'
+                    : 'border-gray-200 hover:border-gray-400'
+                }`}
+              >
+                <div className="text-2xl mb-1.5">{s.icon}</div>
+                <p className={`text-xs font-medium ${selected ? 'text-primary' : textPrimary}`}>{s.name}</p>
+                {selected && <Check size={12} className="text-primary mx-auto mt-1" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2D — Fiori e Verde */}
+      <div className={`rounded-xl border p-6 ${cardCls}`}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className={`text-lg font-semibold ${textPrimary}`}>Fiori e Verde</h2>
+          <button
+            onClick={() => setShowAddFlower(!showAddFlower)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm font-medium hover:bg-rose-500/20 transition"
+          >
+            <Plus size={14} /> Aggiungi fiore
+          </button>
+        </div>
+
+        {/* Add custom flower form */}
+        {showAddFlower && (
+          <div className={`p-4 rounded-lg border mb-5 ${darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+            <p className={`text-sm font-medium mb-3 ${textPrimary}`}>Nuovo fiore personalizzato</p>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className={`block text-xs font-medium mb-1 ${textMuted}`}>Nome fiore</label>
+                <input
+                  type="text"
+                  value={newFlowerName}
+                  onChange={e => setNewFlowerName(e.target.value)}
+                  placeholder="Es: Protea, Amaranto..."
+                  className={`w-full rounded-lg border px-3 py-2 text-sm ${inputCls}`}
+                />
+              </div>
+              <div className="w-48">
+                <label className={`block text-xs font-medium mb-1 ${textMuted}`}>Categoria</label>
+                <select
+                  value={newFlowerCategory}
+                  onChange={e => setNewFlowerCategory(e.target.value)}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm ${inputCls}`}
+                >
+                  <option value="Rose">Rose</option>
+                  <option value="Ortensie">Ortensie</option>
+                  <option value="Fiori Principali">Fiori Principali</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddCustomFlower}
+                  disabled={!newFlowerName.trim()}
+                  className="px-4 py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition disabled:opacity-50"
+                >
+                  Aggiungi
+                </button>
+                <button
+                  onClick={() => { setShowAddFlower(false); setNewFlowerName(''); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                >
+                  Annulla
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Flowers grouped by category */}
+        {(() => {
+          const flowerCategories = [...new Set(allFlowers.map(f => f.category))];
+          return flowerCategories.map(cat => {
+            const catFlowers = allFlowers.filter(f => f.category === cat);
+            return (
+              <div key={cat} className="mb-5">
+                <h3 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${textMuted}`}>{cat}</h3>
+                <div className="flex flex-wrap gap-2">
+                  {catFlowers.map(f => {
+                    const selected = wedding.flowers.includes(f.id);
+                    const isCustom = f.id.startsWith('custom-');
+                    return (
+                      <div key={f.id} className="relative group">
+                        <button
+                          onClick={() => {
+                            setWedding(prev => ({
+                              ...prev,
+                              flowers: selected
+                                ? prev.flowers.filter(id => id !== f.id)
+                                : [...prev.flowers, f.id],
+                            }));
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition flex items-center gap-1.5 ${
+                            selected
+                              ? 'bg-rose-500 text-white border-rose-500'
+                              : darkMode
+                              ? 'border-gray-600 text-gray-300 hover:border-rose-400'
+                              : 'border-gray-300 text-gray-600 hover:border-rose-400'
+                          }`}
+                        >
+                          {selected && <Check size={12} />}
+                          {f.name}
+                        </button>
+                        {isCustom && !selected && (
+                          <button
+                            onClick={() => handleDeleteCustomFlower(f.id)}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                          >
+                            <X size={8} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          });
+        })()}
+
+        {/* Greenery */}
+        <div className="mb-4">
+          <h3 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${textMuted}`}>Verdi / Fogliame</h3>
+          <div className="flex flex-wrap gap-2">
+            {GREENERY.map(g => {
+              const selected = wedding.greenery.includes(g.id);
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => {
+                    setWedding(prev => ({
+                      ...prev,
+                      greenery: selected
+                        ? prev.greenery.filter(id => id !== g.id)
+                        : [...prev.greenery, g.id],
+                    }));
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition flex items-center gap-1.5 ${
+                    selected
+                      ? 'bg-emerald-500 text-white border-emerald-500'
+                      : darkMode
+                      ? 'border-gray-600 text-gray-300 hover:border-emerald-400'
+                      : 'border-gray-300 text-gray-600 hover:border-emerald-400'
+                  }`}
+                >
+                  {selected && <Check size={12} />}
+                  {g.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected summary */}
+        {(wedding.flowers.length > 0 || wedding.greenery.length > 0) && (
+          <div className={`p-4 rounded-lg border ${darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-primary/20 bg-primary/5'}`}>
+            <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${textMuted}`}>Selezione corrente</p>
+            <div className="flex flex-wrap gap-1.5">
+              {wedding.flowers.map(id => {
+                const f = allFlowers.find(fl => fl.id === id);
+                return f ? (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
+                  >
+                    {f.name}
+                    <button
+                      onClick={() =>
+                        setWedding(prev => ({ ...prev, flowers: prev.flowers.filter(x => x !== id) }))
+                      }
+                      className="hover:text-rose-900 dark:hover:text-rose-100"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ) : null;
+              })}
+              {wedding.greenery.map(id => {
+                const g = GREENERY.find(gr => gr.id === id);
+                return g ? (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                  >
+                    {g.name}
+                    <button
+                      onClick={() =>
+                        setWedding(prev => ({ ...prev, greenery: prev.greenery.filter(x => x !== id) }))
+                      }
+                      className="hover:text-emerald-900 dark:hover:text-emerald-100"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ) : null;
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2E — Aree da Allestire */}
+      <div className={`rounded-xl border p-6 ${cardCls}`}>
+        <h2 className={`text-lg font-semibold mb-5 ${textPrimary}`}>Aree da Allestire</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {WEDDING_AREAS.map(area => {
+            const selected = wedding.areas.includes(area.id);
+            return (
+              <button
+                key={area.id}
+                onClick={() => {
+                  setWedding(prev => ({
+                    ...prev,
+                    areas: selected
+                      ? prev.areas.filter(id => id !== area.id)
+                      : [...prev.areas, area.id],
+                  }));
+                }}
+                className={`flex items-center gap-3 p-3 rounded-lg border text-left transition ${
+                  selected
+                    ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                    : darkMode
+                    ? 'border-gray-700 hover:border-gray-500'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${
+                  selected
+                    ? 'bg-primary border-primary'
+                    : darkMode
+                    ? 'border-gray-500'
+                    : 'border-gray-300'
+                }`}>
+                  {selected && <Check size={12} className="text-white" />}
+                </div>
+                <span className={`text-sm font-medium ${selected ? 'text-primary' : textPrimary}`}>{area.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -1057,7 +1170,7 @@ export default function QuoteEditor() {
                         </span>
                         <button
                           onClick={() => addServiceToItems(svc)}
-                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition flex items-center gap-1"
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-white hover:bg-primary-dark transition flex items-center gap-1"
                         >
                           <Plus size={12} /> Aggiungi
                         </button>
@@ -1247,7 +1360,7 @@ export default function QuoteEditor() {
             )}
           </div>
           {discountAmount > 0 && (
-            <p className="text-sm text-rose-500 font-medium mt-2">
+            <p className="text-sm text-danger font-medium mt-2">
               - {formatCurrency(discountAmount)}
             </p>
           )}
@@ -1271,7 +1384,7 @@ export default function QuoteEditor() {
         {/* Total */}
         <div className="flex justify-between items-center py-4">
           <span className={`text-lg font-bold ${textPrimary}`}>TOTALE</span>
-          <span className="text-2xl font-black text-rose-500">{formatCurrency(total)}</span>
+          <span className="text-2xl font-black text-primary">{formatCurrency(total)}</span>
         </div>
       </div>
 
@@ -1368,7 +1481,7 @@ export default function QuoteEditor() {
     });
 
     const selectedFlowers = wedding.flowers
-      .map(id => FLOWERS.find(f => f.id === id)?.name)
+      .map(id => allFlowers.find(f => f.id === id)?.name)
       .filter(Boolean);
     const selectedGreenery = wedding.greenery
       .map(id => GREENERY.find(g => g.id === id)?.name)
@@ -1377,10 +1490,6 @@ export default function QuoteEditor() {
       .map(id => WEDDING_AREAS.find(a => a.id === id)?.name)
       .filter(Boolean);
     const selectedStyle = WEDDING_STYLES.find(s => s.id === wedding.style);
-    const selectedPalette =
-      wedding.palette === '__custom__'
-        ? 'Personalizzata'
-        : wedding.palette || 'Non selezionata';
 
     return (
       <div className="space-y-6">
@@ -1389,7 +1498,7 @@ export default function QuoteEditor() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2.5 rounded-xl bg-rose-500 text-white font-medium hover:bg-rose-600 transition flex items-center gap-2 disabled:opacity-50"
+            className="px-5 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary-dark transition flex items-center gap-2 disabled:opacity-50"
           >
             <Save size={16} /> {saving ? 'Salvataggio...' : 'Salva Bozza'}
           </button>
@@ -1500,34 +1609,20 @@ export default function QuoteEditor() {
                   <p className={`text-sm font-medium ${textPrimary}`}>{wedding.receptionName}</p>
                 </div>
               )}
-              <div>
-                <p className={`text-xs ${textMuted}`}>Palette</p>
-                <div className="flex items-center gap-2">
-                  <p className={`text-sm font-medium ${textPrimary}`}>{selectedPalette}</p>
-                  {wedding.palette && wedding.palette !== '__custom__' && (
-                    <div className="flex gap-0.5">
-                      {WEDDING_PALETTES.find(p => p.name === wedding.palette)?.colors.map((c, i) => (
-                        <div
-                          key={i}
-                          className="w-4 h-4 rounded-full border border-gray-300"
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {wedding.palette === '__custom__' && (
-                    <div className="flex gap-0.5">
-                      {wedding.customColors.map((c, i) => (
-                        <div
-                          key={i}
-                          className="w-4 h-4 rounded-full border border-gray-300"
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
-                    </div>
-                  )}
+              {wedding.customColors.length > 0 && (
+                <div>
+                  <p className={`text-xs ${textMuted}`}>Palette</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    {wedding.customColors.map((c, i) => (
+                      <div
+                        key={i}
+                        className="w-6 h-6 rounded-full border border-gray-300"
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               {selectedStyle && (
                 <div>
                   <p className={`text-xs ${textMuted}`}>Stile</p>
@@ -1652,7 +1747,7 @@ export default function QuoteEditor() {
                   {financial.discountType === 'percentage' && ` (${financial.discountValue}%)`}
                   {financial.discountNote && ` - ${financial.discountNote}`}
                 </span>
-                <span className="text-sm font-medium text-rose-500">
+                <span className="text-sm font-medium text-danger">
                   -{formatCurrency(discountAmount)}
                 </span>
               </div>
@@ -1668,7 +1763,7 @@ export default function QuoteEditor() {
             </div>
             <div className={`flex justify-between pt-2 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <span className={`text-base font-bold ${textPrimary}`}>TOTALE</span>
-              <span className="text-xl font-black text-rose-500">{formatCurrency(total)}</span>
+              <span className="text-xl font-black text-primary">{formatCurrency(total)}</span>
             </div>
           </div>
         </div>
@@ -1745,7 +1840,7 @@ export default function QuoteEditor() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 rounded-xl bg-rose-500 text-white font-medium text-sm hover:bg-rose-600 transition flex items-center gap-2 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary-dark transition flex items-center gap-2 disabled:opacity-50"
         >
           <Save size={14} /> {saving ? 'Salvataggio...' : 'Salva'}
         </button>
@@ -1784,7 +1879,7 @@ export default function QuoteEditor() {
         <button
           onClick={goNext}
           disabled={!canGoNext}
-          className="px-5 py-2.5 rounded-xl bg-rose-500 text-white font-medium text-sm hover:bg-rose-600 transition flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="px-5 py-2.5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary-dark transition flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Avanti <ChevronRight size={16} />
         </button>

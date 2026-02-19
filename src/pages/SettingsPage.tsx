@@ -72,25 +72,25 @@ export default function SettingsPage() {
     e.target.value = '';
   }
 
-  const cardClass = `rounded-lg border p-6 ${
+  const cardClass = `rounded-xl border p-6 ${
     darkMode
-      ? 'bg-gray-800 border-gray-700'
-      : 'bg-white border-gray-200'
+      ? 'bg-surface-dark border-border-dark'
+      : 'bg-surface border-border'
   }`;
 
   const labelClass = `block text-sm font-medium mb-1 ${
     darkMode ? 'text-gray-300' : 'text-gray-700'
   }`;
 
-  const inputClass = `w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+  const inputClass = `w-full rounded-lg border px-3 py-2.5 text-sm ${
     darkMode
-      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
   }`;
 
-  const textareaClass = `w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical ${
+  const textareaClass = `w-full rounded-lg border px-3 py-2.5 text-sm resize-vertical ${
     darkMode
-      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
   }`;
 
@@ -99,12 +99,12 @@ export default function SettingsPage() {
   }`;
 
   return (
-    <div className={`min-h-screen p-6 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div className="space-y-6">
       {/* Toast */}
       {toast && (
         <div
           className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${
-            toastType === 'success' ? 'bg-green-500' : 'bg-red-500'
+            toastType === 'success' ? 'bg-success' : 'bg-danger'
           }`}
         >
           {toast}
@@ -112,16 +112,16 @@ export default function SettingsPage() {
       )}
 
       {/* Header */}
-      <div className="mb-8">
+      <div>
         <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           Impostazioni
         </h1>
-        <p className={`mt-1 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          Configura i parametri della tua attività
+        <p className="text-sm mt-0.5 text-text-muted">
+          Configura i parametri della tua attivita
         </p>
       </div>
 
-      <div className="max-w-4xl space-y-6">
+      <div className="max-w-4xl space-y-5">
         {/* Dati Aziendali */}
         <div className={cardClass}>
           <h2 className={sectionTitleClass}>
@@ -430,7 +430,7 @@ export default function SettingsPage() {
         <div className="flex justify-end pb-8">
           <button
             onClick={handleSave}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-md text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-lg"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary-dark transition-colors"
           >
             <Save className="w-5 h-5" />
             Salva Impostazioni

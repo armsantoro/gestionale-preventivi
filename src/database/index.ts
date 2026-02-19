@@ -1,6 +1,6 @@
 import type {
   Client, Service, ServiceCategory, Quote, QuoteItem,
-  WeddingDetails, PaymentPlan, CompanySettings
+  WeddingDetails, PaymentPlan, CompanySettings, CustomFlower
 } from '../types';
 
 const DB_PREFIX = 'sf_';
@@ -327,6 +327,26 @@ export function seedDatabase(): void {
 
   services.forEach(s => createService(s));
   localStorage.setItem(DB_PREFIX + 'seeded', 'true');
+}
+
+// ============ CUSTOM FLOWERS ============
+export function getCustomFlowers(): CustomFlower[] {
+  return getStore<CustomFlower>('custom_flowers');
+}
+
+export function addCustomFlower(flower: CustomFlower): CustomFlower {
+  const flowers = getCustomFlowers();
+  flowers.push(flower);
+  setStore('custom_flowers', flowers);
+  return flower;
+}
+
+export function deleteCustomFlower(id: string): boolean {
+  const flowers = getCustomFlowers();
+  const filtered = flowers.filter(f => f.id !== id);
+  if (filtered.length === flowers.length) return false;
+  setStore('custom_flowers', filtered);
+  return true;
 }
 
 // ============ QUOTE NUMBER GENERATION ============

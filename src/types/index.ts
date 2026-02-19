@@ -132,16 +132,11 @@ export interface DashboardStats {
   monthlyRevenue: { month: string; value: number }[];
 }
 
-export const WEDDING_PALETTES = [
-  { name: 'Avorio & Bianco', colors: ['#FFFFF0', '#FFFFFF', '#F5F5DC'] },
-  { name: 'Blush & Oro', colors: ['#FFB6C1', '#FFD700', '#FFF8DC'] },
-  { name: 'Verde Salvia & Champagne', colors: ['#9CAF88', '#F7E7CE', '#E8DCC8'] },
-  { name: 'Bordeaux & Grigio', colors: ['#722F37', '#808080', '#D3D3D3'] },
-  { name: 'Navy & Oro', colors: ['#000080', '#FFD700', '#FFFFF0'] },
-  { name: 'Tutto Bianco Romantico', colors: ['#FFFFFF', '#FFFAFA', '#FFF5EE'] },
-  { name: 'Boho Naturale', colors: ['#C4A484', '#8B7355', '#F5DEB3'] },
-  { name: 'Moderno Nero & Bianco', colors: ['#000000', '#FFFFFF', '#C0C0C0'] },
-];
+export interface CustomFlower {
+  id: string;
+  name: string;
+  category: string;
+}
 
 export const WEDDING_STYLES = [
   { id: 'rustico', name: 'Rustico / Boho', icon: '🌿' },
