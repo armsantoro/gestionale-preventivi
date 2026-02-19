@@ -8,8 +8,9 @@ import {
 } from '../types';
 import { formatCurrency, formatDate, formatDateInput } from '../utils/format';
 import {
-  ChevronLeft, ChevronRight, Save, FileText, Copy, Plus, Trash2, X, Check, Gift
+  ChevronLeft, ChevronRight, Save, FileText, Copy, Plus, Trash2, X, Check, Gift, Loader2
 } from 'lucide-react';
+import { generatePdf } from '../components/quotes/PdfGenerator';
 
 // ─── Helper types ───────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ export default function QuoteEditor() {
   // ─── Wizard state ───────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const [savedQuoteId, setSavedQuoteId] = useState<number | null>(null);
 
   // ─── STEP 1 ─────────────────────────────────────────────────────────
@@ -1504,17 +1506,105 @@ export default function QuoteEditor() {
           </button>
           <button
             onClick={async () => {
-              await handleSave();
-              // PDF generation placeholder
-              alert('PDF generato con successo! (funzionalita in sviluppo)');
+              setGeneratingPdf(true);
+              try {
+                await handleSave();
+                const clientObj = clients.find(c => c.id === general.clientId);
+                const quoteObj: Quote = {
+                  id: savedQuoteId || 0,
+                  number: quoteNumber,
+                  clientId: general.clientId,
+                  clientName: clientObj?.name || general.newClientName || '',
+                  eventType: general.eventType,
+                  eventDate: general.eventDate,
+                  eventLocation: general.eventLocation,
+                  guestCount: general.guestCount,
+                  tableCount: general.tableCount,
+                  expiryDate: general.expiryDate,
+                  internalNotes: general.internalNotes,
+                  clientNotes: financial.clientNotes,
+                  conditions: financial.conditions,
+                  status: 'bozza',
+                  subtotal,
+                  discountType: financial.discountType,
+                  discountValue: financial.discountValue,
+                  discountNote: financial.discountNote,
+                  taxRate: settings.taxRegime === 'forfettario' ? 0 : settings.vatRate,
+                  total,
+                  confirmedDate: null,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                };
+
+                const quoteItems: QuoteItem[] = items.map((it, idx) => ({
+                  id: idx + 1,
+                  quoteId: savedQuoteId || 0,
+                  serviceId: it.serviceId,
+                  section: it.section,
+                  description: it.description,
+                  quantity: it.quantity,
+                  unitPrice: it.unitPrice,
+                  amount: it.amount,
+                  isGift: it.isGift,
+                  sortOrder: idx,
+                }));
+
+                let weddingDetailsObj: WeddingDetails | undefined;
+                if (isWedding) {
+                  weddingDetailsObj = {
+                    id: 1,
+                    quoteId: savedQuoteId || 0,
+                    brideName: wedding.brideName,
+                    groomName: wedding.groomName,
+                    ceremonyType: wedding.ceremonyType,
+                    churchName: wedding.churchName,
+                    receptionName: wedding.receptionName,
+                    hasCoordinator: wedding.hasCoordinator,
+                    palette: '',
+                    paletteColors: JSON.stringify(wedding.customColors),
+                    style: wedding.style,
+                    flowers: JSON.stringify(wedding.flowers),
+                    greenery: JSON.stringify(wedding.greenery),
+                    areas: JSON.stringify(wedding.areas),
+                  };
+                }
+
+                const paymentPlanObjs: PaymentPlan[] = payments.map((p, idx) => ({
+                  id: idx + 1,
+                  quoteId: savedQuoteId || 0,
+                  description: p.description,
+                  percentage: p.percentage,
+                  amount: p.amount,
+                  dueDate: p.dueDate,
+                  sortOrder: idx,
+                }));
+
+                await generatePdf({
+                  quote: quoteObj,
+                  items: quoteItems,
+                  weddingDetails: weddingDetailsObj,
+                  paymentPlans: paymentPlanObjs,
+                  settings,
+                  accentColor: '#8B6F5E',
+                  template: settings.defaultTemplate as 'elegante' | 'minimal',
+                  customFlowers,
+                });
+              } catch (err) {
+                console.error('Errore generazione PDF:', err);
+                alert('Errore durante la generazione del PDF.');
+              } finally {
+                setGeneratingPdf(false);
+              }
             }}
-            className={`px-5 py-2.5 rounded-xl font-medium border transition flex items-center gap-2 ${
+            disabled={generatingPdf}
+            className={`px-5 py-2.5 rounded-lg font-medium border transition flex items-center gap-2 disabled:opacity-50 ${
               darkMode
                 ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <FileText size={16} /> Genera PDF
+            {generatingPdf ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+            {generatingPdf ? 'Generazione...' : 'Genera PDF'}
           </button>
           <button
             onClick={handleDuplicate}
