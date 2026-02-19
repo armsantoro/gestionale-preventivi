@@ -26,7 +26,9 @@ export default function App() {
     <div className={`flex h-screen ${darkMode ? 'dark' : ''}`}>
       <Sidebar />
       <main className={`flex-1 overflow-auto ${darkMode ? 'bg-bg-dark text-text-dark' : 'bg-bg text-text'}`}>
-        {renderPage()}
+        <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
+          {renderPage()}
+        </div>
       </main>
     </div>
   );

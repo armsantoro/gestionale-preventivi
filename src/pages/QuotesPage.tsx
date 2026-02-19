@@ -237,15 +237,15 @@ export default function QuotesPage() {
 
   const hasActiveFilters = statusFilter || eventTypeFilter || dateFrom || dateTo || amountMin || amountMax;
 
-  const inputClass = `w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 ${
+  const inputClass = `w-full rounded-lg border px-3 py-2 text-sm ${
     darkMode
-      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
   }`;
 
-  const selectClass = `rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 ${
+  const selectClass = `rounded-lg border px-3 py-2 text-sm ${
     darkMode
-      ? 'bg-gray-700 border-gray-600 text-white'
+      ? 'bg-gray-800 border-gray-700 text-white'
       : 'bg-white border-gray-300 text-gray-900'
   }`;
 
@@ -257,17 +257,17 @@ export default function QuotesPage() {
           <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             Preventivi
           </h1>
-          <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p className={`text-sm mt-0.5 text-text-muted`}>
             {sorted.length} preventiv{sorted.length === 1 ? 'o' : 'i'} trovati
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={handleExportCSV}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
               darkMode
-                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                ? 'border-gray-700 text-gray-300 hover:bg-gray-800'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
             <Download size={16} />
@@ -275,7 +275,7 @@ export default function QuotesPage() {
           </button>
           <button
             onClick={handleNew}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition-colors"
           >
             <Plus size={16} />
             Nuovo Preventivo
@@ -284,7 +284,7 @@ export default function QuotesPage() {
       </div>
 
       {/* Search & Filter Bar */}
-      <div className={`rounded-xl p-4 ${darkMode ? 'bg-gray-800' : 'bg-white shadow-sm border border-gray-200'}`}>
+      <div className={`rounded-xl p-4 border ${darkMode ? 'bg-surface-dark border-border-dark' : 'bg-surface border-border'}`}>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search
@@ -317,11 +317,11 @@ export default function QuotesPage() {
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               showFilters || hasActiveFilters
-                ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
+                ? 'bg-primary/10 text-primary'
                 : darkMode
-                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            } ${hasActiveFilters ? 'ring-2 ring-pink-400' : ''}`}
+            } ${hasActiveFilters ? 'ring-2 ring-primary/30' : ''}`}
           >
             <Filter size={16} />
             Filtri
@@ -402,7 +402,7 @@ export default function QuotesPage() {
               <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
                 <button
                   onClick={resetFilters}
-                  className="text-sm text-pink-600 hover:text-pink-700 font-medium"
+                  className="text-sm text-primary hover:text-primary-dark font-medium"
                 >
                   Resetta tutti i filtri
                 </button>
@@ -413,7 +413,7 @@ export default function QuotesPage() {
       </div>
 
       {/* Table */}
-      <div className={`rounded-xl overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white shadow-sm border border-gray-200'}`}>
+      <div className={`rounded-xl overflow-hidden border ${darkMode ? 'bg-surface-dark border-border-dark' : 'bg-surface border-border'}`}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -434,7 +434,7 @@ export default function QuotesPage() {
                   Tipo Evento
                 </th>
                 <th
-                  className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-pink-500 ${
+                  className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-primary ${
                     darkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}
                   onClick={() => handleSort('eventDate')}
@@ -442,7 +442,7 @@ export default function QuotesPage() {
                   Data Evento{sortIndicator('eventDate')}
                 </th>
                 <th
-                  className={`text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-pink-500 ${
+                  className={`text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-primary ${
                     darkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}
                   onClick={() => handleSort('total')}
@@ -450,7 +450,7 @@ export default function QuotesPage() {
                   Totale{sortIndicator('total')}
                 </th>
                 <th
-                  className={`text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-pink-500 ${
+                  className={`text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-primary ${
                     darkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}
                   onClick={() => handleSort('status')}

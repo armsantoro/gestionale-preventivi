@@ -183,9 +183,12 @@ export default function ServicesPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          Catalogo Servizi
-        </h1>
+        <div>
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Catalogo Servizi
+          </h1>
+          <p className="text-sm mt-0.5 text-text-muted">Gestisci categorie e servizi</p>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={openNewCategory}

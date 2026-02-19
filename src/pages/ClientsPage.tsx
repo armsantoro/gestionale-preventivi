@@ -151,26 +151,26 @@ export default function ClientsPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Clienti</h1>
-          <p className={`text-sm mt-1 ${darkMode ? 'text-text-muted' : 'text-text-muted'}`}>
+          <p className="text-sm mt-0.5 text-text-muted">
             Gestisci la tua rubrica clienti
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent-light text-white rounded-lg transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors text-sm font-medium"
         >
-          <Plus size={18} />
+          <Plus size={16} />
           Nuovo Cliente
         </button>
       </div>
 
       {/* Search & Filters */}
-      <div className={`rounded-xl p-4 mb-6 ${darkMode ? 'bg-surface-dark' : 'bg-surface'} shadow-sm`}>
+      <div className={`rounded-xl p-4 border ${darkMode ? 'bg-surface-dark border-border-dark' : 'bg-surface border-border'}`}>
         <div className="flex flex-wrap gap-3">
           <div className="flex-1 min-w-[240px] relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -550,7 +550,7 @@ export default function ClientsPage() {
               <button
                 onClick={handleSave}
                 disabled={!form.name.trim()}
-                className="px-4 py-2 bg-accent hover:bg-accent-light text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {editingClient ? 'Salva Modifiche' : 'Crea Cliente'}
               </button>
